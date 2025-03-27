@@ -157,7 +157,7 @@ lz4
 Markdown
 markdown-it-py
 MarkupSafe
-matplotlib==3.9.2
+matplotlib==3.7.1       # <-- Remplacé 3.9.2 par 3.7.1
 matplotlib-inline
 mccabe
 mdit-py-plugins
@@ -266,9 +266,10 @@ pytoolconfig
 pytz
 pyviz_comms
 PyWavelets
-pywin32==305.1
-pywin32-ctypes
-pywinpty
+# pywin32==305.1           # <-- SUPPRIMÉ (Windows only)
+# pywin32-ctypes           # <-- SUPPRIMÉ (Windows only)
+# pywinpty                 # <-- SUPPRIMÉ (Windows only)
+# win-inet-pton            # <-- SUPPRIMÉ (Windows only)
 pyxlsb==1.0.10
 PyYAML
 pyzmq
@@ -294,8 +295,8 @@ ruamel.yaml
 ruamel.yaml.clib
 s3fs
 scikit-image
-scikit-learn==1.5.1
-scipy==1.13.1
+scikit-learn==1.2.2      # <-- Remplacé 1.5.1 par 1.2.2
+scipy==1.10.1            # <-- Remplacé 1.13.1 par 1.10.1
 Scrapy
 seaborn
 semver
@@ -347,7 +348,7 @@ tqdm
 traitlets
 truststore
 Twisted
-twisted-iocpsupport
+# twisted-iocpsupport     # <-- SUPPRIMÉ (Windows only)
 typing_extensions
 tzdata
 uc-micro-py
@@ -367,7 +368,6 @@ whatthepatch
 wheel==0.44.0
 Whoosh==2.7.4
 widgetsnbextension
-win-inet-pton
 wrapt
 xarray
 xlrd==2.0.1
