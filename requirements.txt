@@ -218,4 +218,5 @@ wrapt==1.17.2
     # via
     #   bw2data
     #   deprecated
-openpyxl==3.0.10
+# requirements.txt
+openpyxl>=3.1.1  # Version compatible avec pandas 2.2.3
