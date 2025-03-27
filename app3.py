@@ -1,3 +1,30 @@
+# Ajouter en tête du fichier
+import base64
+from io import BytesIO
+
+# Nouvelle fonction pour exporter les graphiques
+def get_image_download_link(fig, filename):
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=300)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    return f'<a href="data:image/png;base64,{b64}" download="{filename}.png">Télécharger l\'image</a>'
+
+# Modifier le main() pour ajouter :
+def main():
+    st.set_page_config(
+        page_title="BioCop Analysis",
+        page_icon="🌍",
+        layout="wide"
+    )
+    
+    # Ajouter un thème personnalisé
+    with open("style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    
+    # Ajouter un système de cache pour les lourds calculs
+    @st.cache_data
+    def load_data(uploaded_file):
+        return analyze_excel_and_generate_tables(uploaded_file)
 # Import the necessary libraries
 import streamlit as st
 import pandas as pd
