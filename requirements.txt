@@ -218,3 +218,4 @@ wrapt==1.17.2
     # via
     #   bw2data
     #   deprecated
+openpyxl==3.0.10
