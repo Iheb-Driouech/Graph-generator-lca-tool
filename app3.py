@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 28 14:50:44 2025
+
+@author: ploubet001
+"""
+
 # Import the necessary libraries
 import streamlit as st
 import pandas as pd
@@ -117,6 +124,7 @@ def generate_tables_by_scenario(initial_table, scenario_names_cleaned):
     - Percentage of each contribution relative to the total impact
     """
     try:
+        
         scenario_tables = {}
         for scenario_clean in scenario_names_cleaned:
             # Find the matching scenario in the MultiIndex columns
@@ -154,6 +162,7 @@ def generate_tables_by_scenario(initial_table, scenario_names_cleaned):
     except Exception as e:
         print(f"Error generating scenario tables: {e}")
         return None
+
 
 
 def plot_comparison_bar_chart(total_impact_table):
@@ -213,12 +222,13 @@ def plot_comparison_bar_chart(total_impact_table):
             bars.append(bar[0])
             labels.append(scenario)
 
-        ax1.set_title("Comparison of Scenarios", fontsize=16, pad=30, fontweight="bold")
-        ax1.set_ylabel("(%)", fontsize=14)
+        ax1.set_title("Comparison of Scenarios", fontsize=font_sizes['title'], pad=30, fontweight="bold")
+        ax1.set_ylabel("(%)", fontsize=font_sizes['label'])
+        ax1.tick_params(axis='y', labelsize=font_sizes['label'])
         ax1.set_ylim(0, 100)
         ax1.set_xlim(-0.5, len(categories))
         ax1.set_xticks(x_positions + (len(scenarios) - 1) * bar_width / 2)
-        ax1.set_xticklabels(categories, rotation=45, ha="right", fontsize=12)
+        ax1.set_xticklabels(categories, rotation=45, ha="right", fontsize=font_sizes['label'])
         ax1.grid(axis="y", linestyle="--", alpha=0.7)
         plt.tight_layout()
         figs.append(fig1)
@@ -227,7 +237,7 @@ def plot_comparison_bar_chart(total_impact_table):
         # === Figure 2: Legend only ===
         fig2, ax2 = plt.subplots(figsize=(5, 3))
         ax2.axis("off")
-        ax2.legend(bars, labels, title="Scenarios", fontsize=10, loc="center")
+        ax2.legend(bars, labels, title="Scenarios", fontsize=font_sizes['legend'], loc="center")
         plt.tight_layout()
         figs.append(fig2)
         plt.close(fig2)
@@ -260,18 +270,19 @@ def plot_comparison_bar_chart(total_impact_table):
                     formatted_value,
                     ha="center",
                     va="bottom",
-                    fontsize=6.5,
+                    fontsize=font_sizes['text'],
                     color="black",
                     fontweight="bold",
-                    rotation=90 if abs(total_value) < 0.01 else 0,
+                    rotation=90,
                 )
 
-        ax3.set_title("Comparison of Scenarios (with Totals)", fontsize=16, pad=80, fontweight="bold")
-        ax3.set_ylabel("(%)", fontsize=14)
+        ax3.set_title("Comparison of Scenarios (with Totals)", fontsize=font_sizes['title'], pad=80, fontweight="bold")
+        ax3.set_ylabel("(%)", fontsize=font_sizes['label'])
+        ax3.tick_params(axis='y', labelsize=font_sizes['label'])
         ax3.set_ylim(0, 100)
         ax3.set_xlim(-0.5, len(categories))
         ax3.set_xticks(x_positions + (len(scenarios) - 1) * bar_width / 2)
-        ax3.set_xticklabels(categories, rotation=45, ha="right", fontsize=12)
+        ax3.set_xticklabels(categories, rotation=45, ha="right", fontsize=font_sizes['label'])
         ax3.grid(axis="y", linestyle="--", alpha=0.7)
         plt.tight_layout()
         figs.append(fig3)
@@ -378,26 +389,27 @@ def plot_relative_contribution_by_scenario(scenario_tables):
                     formatted_value,
                     ha="center",
                     va="bottom",
-                    fontsize=10,
+                    fontsize=font_sizes['legend'],
                     color="black",
                     fontweight="bold"
                 )
 
             main_ax.set_title(
                 f"Relative Contributions - {scenario_name.capitalize()}",
-                fontsize=16,
+                fontsize=font_sizes['title'],
                 pad=40,
                 fontweight="bold"
             )
             main_ax.set_ylabel("(%)")
             main_ax.set_ylim(min(bottom_neg) - 5, max(bottom_pos))
             main_ax.set_xticks(range(len(categories)))
-            main_ax.set_xticklabels(categories, rotation=45, ha="right", fontsize=12)
+            main_ax.set_xticklabels(categories, rotation=45, ha="right", fontsize=font_sizes['label'])
+            main_ax.tick_params(axis='y', labelsize=font_sizes['label'])
             main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             plt.tight_layout()
 
             legend_ax.axis("off")
-            legend_ax.legend(bars, labels, title="Contributions", fontsize=10, loc="center")
+            legend_ax.legend(bars, labels, title="Contributions", fontsize=font_sizes['legend'], loc="center")
             plt.tight_layout()
 
             figures.append((main_fig, legend_fig))
@@ -511,26 +523,27 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
                     formatted_value,
                     ha="left",
                     va="center",
-                    fontsize=10,
+                    fontsize=font_sizes['text'],
                     color="black",
                     fontweight="bold"
                 )
 
             main_ax.set_title(
                 f"Horizontal Contributions - {scenario_name.capitalize()}",
-                fontsize=16,
+                fontsize=font_sizes['title'],
                 pad=30,
                 fontweight="bold"
             )
             main_ax.set_xlabel("(%)")
             main_ax.set_xlim(min(left_neg) - 5, max(left_pos))
             main_ax.set_yticks(range(len(categories)))
-            main_ax.set_yticklabels(categories, fontsize=12)
+            main_ax.set_yticklabels(categories, fontsize=font_sizes['label'])
+            main_ax.tick_params(axis='y', labelsize=font_sizes['label'])
             main_ax.grid(axis="x", linestyle="--", alpha=0.7)
             plt.tight_layout()
-
+            
             legend_ax.axis("off")
-            legend_ax.legend(bars, labels, title="Contributions", fontsize=10, loc="center")
+            legend_ax.legend(bars, labels, title="Contributions", fontsize=font_sizes['legend'], loc="center")
             plt.tight_layout()
 
             figures.append((main_fig, legend_fig))
@@ -650,7 +663,7 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
                             formatted,
                             ha='center',
                             va='bottom',
-                            fontsize=10,
+                            fontsize=font_sizes['text'],
                             color='black',
                             fontweight='bold'
                         )
@@ -658,17 +671,17 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
                         continue
 
             # Mise en forme
-            main_ax.set_title(f"Contribution Analysis - Category: {category}", fontsize=16, pad=40, fontweight="bold")
-            main_ax.set_ylabel("(%)", fontsize=14)
+            main_ax.set_title(f"Contribution Analysis - Category: {category}", fontsize=font_sizes['title'], pad=40, fontweight="bold")
+            main_ax.set_ylabel("(%)", fontsize=font_sizes['label'])
             main_ax.set_xticks(x_positions)
-            main_ax.set_xticklabels([scenario_labels[s] for s in scenarios], rotation=45, ha="right", fontsize=12)
+            main_ax.set_xticklabels([scenario_labels[s] for s in scenarios], rotation=45, ha="right", fontsize=font_sizes['label'])
             main_ax.set_xlim(x_positions[0] - (bar_width / 2), x_positions[-1] + (bar_width / 2))
             main_ax.set_ylim(min(bottom_neg) - 5, max(bottom_pos))
             main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             plt.tight_layout()
 
             legend_ax.axis("off")
-            legend_ax.legend(bars, labels, title="Contributions", fontsize=10, loc="center")
+            legend_ax.legend(bars, labels, title="Contributions", fontsize=font_sizes['legend'], loc="center")
             plt.tight_layout()
 
             figures.append((main_fig, legend_fig, category))
@@ -751,7 +764,7 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
             fig, ax = plt.subplots(figsize=(16, 10))
             title = "Combined Scenarios Analysis"
             title += " (with Totals)" if show_totals else ""
-            ax.set_title(title, fontsize=18, pad=20, fontweight='bold')
+            ax.set_title(title, fontsize=font_sizes['title'], pad=20, fontweight='bold')
 
             for i, scenario in enumerate(scenarios):
                 bottom_pos = np.zeros(len(categories))
@@ -808,14 +821,15 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
                                 ha='center',
                                 va='bottom',
                                 rotation=90,
-                                fontsize=8
+                                fontsize=font_sizes['text']
                             )
                     except KeyError:
                         pass
 
             ax.set_xticks(x_positions + (num_scenarios - 1) * bar_width / 2)
-            ax.set_xticklabels(categories, rotation=45, ha='right', fontsize=12)
-            ax.set_ylabel("Contribution (%)", fontsize=14)
+            ax.set_xticklabels(categories, rotation=45, ha='right', fontsize=font_sizes['label'])
+            ax.tick_params(axis='y', labelsize=font_sizes['label'])
+            ax.set_ylabel("Contribution (%)", fontsize=font_sizes['label'])
             ax.axhline(0, color='black', linestyle='--', alpha=0.5)
             plt.tight_layout()
             return fig
@@ -849,7 +863,7 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
             list(contrib_color_map.keys()) + [s.split("(")[-1].replace(")", "").strip() for s in scenarios],
             title="Legend - Contributions & Scenarios",
             ncol=2,
-            fontsize=8,
+            fontsize=font_sizes['legend'],
             loc='center'
         )
         figures.append(("Combined Legend", legend_fig))
@@ -940,6 +954,14 @@ def find_file_path(file_name, start_directory=None):
 
     return None
 
+def get_font_sizes():
+    st.sidebar.subheader("🔧 Font Size Settings")
+    return {
+        "title": st.sidebar.slider("Title Font Size", 10, 30, 16),
+        "label": st.sidebar.slider("Axis Label Font Size", 8, 30, 14),
+        "text": st.sidebar.slider("Text Font Size", 6, 30, 12),
+        "legend": st.sidebar.slider("Legend Font Size", 6, 30, 12)
+        }
 
 
 
@@ -948,17 +970,18 @@ def find_file_path(file_name, start_directory=None):
 ###############################
 
 def main():
-    st.title("Environmental Impact Analysis")
+    st.title("LCA graphs generator 🌍")
 
     # File uploader
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"], key="file_upload_main")
 
     if uploaded_file is not None:
         try:
+            global font_sizes
             # Lire les feuilles disponibles dans le fichier
             excel_file = pd.ExcelFile(uploaded_file)
             sheet_names = excel_file.sheet_names
-
+            font_sizes = get_font_sizes()
             # Choix de la feuille par l'utilisateur
             selected_sheet = st.selectbox("📄 Choisissez la feuille à analyser :", sheet_names)
 
