@@ -68,7 +68,24 @@ def analyze_excel_and_generate_tables(file_path, sheet_name=0):
         print(f"Error analyzing the Excel file: {e}")
         return None, None, None, None
 
+def extract_contributions_from_initial_table(initial_table):
+    """
+    Extrait les contributions uniques depuis les colonnes MultiIndex de initial_table.
+    """
+    try:
+        if not isinstance(initial_table.columns, pd.MultiIndex):
+            raise ValueError("initial_table n'a pas un MultiIndex en colonnes.")
 
+        contributions = initial_table.columns.get_level_values(1)
+        unique_contributions = sorted(set(contributions.astype(str).str.strip()))
+
+        print(f"Contributions uniques détectées ({len(unique_contributions)}) : {unique_contributions}")
+        return unique_contributions
+
+    except Exception as e:
+        print(f"Erreur lors de l'extraction depuis initial_table : {e}")
+        return []
+    
 def generate_percentage_table(initial_table, total_impact_table):
     """
     Generates a DataFrame identical to `initial_table`, but converts its values to percentages
@@ -156,26 +173,30 @@ def plot_comparison_bar_chart(total_impact_table):
         bar_width = 0.9 / num_scenarios
         x_positions = np.arange(len(categories))
 
-        # Handle scenario colors
-        if scenario_colors is not None and not scenario_colors.empty:
-            scenario_color_map = {
-                row["Scenario"].strip().lower(): row["Hex Code"]
-                for _, row in scenario_colors.iterrows()
-            }
-        else:
-            scenario_color_map = None
-            generic_colors = plt.get_cmap("tab10").colors
+        # === Handle scenario colors ===
+        scenario_color_map = None
+        generic_colors = plt.get_cmap("tab10").colors
 
-        # Figure 1: Main bar chart (no totals)
+        if scenario_colors is not None:
+            if isinstance(scenario_colors, dict):
+                scenario_color_map = scenario_colors
+            elif hasattr(scenario_colors, "iterrows"):
+                scenario_color_map = {
+                    row["Scenario"].strip().lower(): row["Hex Code"]
+                    for _, row in scenario_colors.iterrows()
+                }
+
+        # === Figure 1: Main bar chart (no totals) ===
         fig1, ax1 = plt.subplots(figsize=(12, 7))
         bars = []
         labels = []
 
         for i, scenario in enumerate(scenarios):
-            if scenario_color_map:
-                color = scenario_color_map.get(scenario.strip().lower(), "#000000")
-            else:
-                color = generic_colors[i % len(generic_colors)]
+            key = scenario.strip().lower()
+            color = (
+                scenario_color_map.get(key, "#000000")
+                if scenario_color_map else generic_colors[i % len(generic_colors)]
+            )
             bar = ax1.bar(
                 x_positions + i * bar_width,
                 normalized_data[scenario],
@@ -199,7 +220,7 @@ def plot_comparison_bar_chart(total_impact_table):
         figs.append(fig1)
         plt.close(fig1)
 
-        # Figure 2: Legend
+        # === Figure 2: Legend only ===
         fig2, ax2 = plt.subplots(figsize=(5, 3))
         ax2.axis("off")
         ax2.legend(bars, labels, title="Scenarios", fontsize=font_sizes['legend'], loc="center")
@@ -207,13 +228,14 @@ def plot_comparison_bar_chart(total_impact_table):
         figs.append(fig2)
         plt.close(fig2)
 
-        # Figure 3: Bar chart with total labels
+        # === Figure 3: With total values ===
         fig3, ax3 = plt.subplots(figsize=(12, 7))
         for i, scenario in enumerate(scenarios):
-            if scenario_color_map:
-                color = scenario_color_map.get(scenario.strip().lower(), "#000000")
-            else:
-                color = generic_colors[i % len(generic_colors)]
+            key = scenario.strip().lower()
+            color = (
+                scenario_color_map.get(key, "#000000")
+                if scenario_color_map else generic_colors[i % len(generic_colors)]
+            )
             ax3.bar(
                 x_positions + i * bar_width,
                 normalized_data[scenario],
@@ -256,16 +278,17 @@ def plot_comparison_bar_chart(total_impact_table):
         return []
 
 
+
 def plot_relative_contribution_by_scenario(scenario_tables):
     """
-    Generates a list of (main_figure, legend_figure) tuples for each scenario
-    showing stacked bar charts (vertical) of relative contribution.
+    Génère une liste de (main_figure, legend_figure) pour chaque scénario,
+    affichant un graphique en barres empilées (verticales) des contributions relatives.
     """
     try:
         global contributions_colors
         figures = []
 
-        # Identify all contributions
+        # Identifier toutes les contributions présentes
         all_contributions = set()
         for table in scenario_tables.values():
             contribution_columns = [
@@ -274,24 +297,30 @@ def plot_relative_contribution_by_scenario(scenario_tables):
             ]
             all_contributions.update(contribution_columns)
 
-        # Assign colors
+        # Générer la palette de couleurs
         contribution_colors = {}
-        if contributions_colors is not None and not contributions_colors.empty:
-            for contribution in sorted(all_contributions):
-                contrib_name = contribution.replace("%", "").strip()
-                match = contributions_colors[
-                    contributions_colors["Contributions"].str.lower() == contrib_name.lower()
-                ]
-                if not match.empty:
-                    contribution_colors[contribution] = match["Hex Code"].iloc[0]
-                else:
-                    contribution_colors[contribution] = "#000000"
-        else:
-            generic_colors = plt.get_cmap("tab10").colors
-            for i, contribution in enumerate(sorted(all_contributions)):
-                contribution_colors[contribution] = generic_colors[i % len(generic_colors)]
+        generic_colors = plt.get_cmap("tab10").colors
 
-        # Generate charts per scenario
+        if contributions_colors is not None:
+            if isinstance(contributions_colors, dict):
+                for i, contrib in enumerate(sorted(all_contributions)):
+                    key = contrib.replace("%", "").strip().lower()
+                    contribution_colors[contrib] = contributions_colors.get(key, generic_colors[i % len(generic_colors)])
+            elif hasattr(contributions_colors, "iterrows"):
+                for i, contrib in enumerate(sorted(all_contributions)):
+                    contrib_clean = contrib.replace("%", "").strip().lower()
+                    match = contributions_colors[
+                        contributions_colors["Contributions"].str.lower() == contrib_clean
+                    ]
+                    if not match.empty:
+                        contribution_colors[contrib] = match["Hex Code"].iloc[0]
+                    else:
+                        contribution_colors[contrib] = generic_colors[i % len(generic_colors)]
+        else:
+            for i, contrib in enumerate(sorted(all_contributions)):
+                contribution_colors[contrib] = generic_colors[i % len(generic_colors)]
+
+        # Génération des graphiques
         for scenario_name, table in scenario_tables.items():
             main_fig, main_ax = plt.subplots(figsize=(16, 8))
             legend_fig, legend_ax = plt.subplots(figsize=(5, 3))
@@ -307,7 +336,6 @@ def plot_relative_contribution_by_scenario(scenario_tables):
             bars = []
             labels = []
 
-            # Stack positive and negative
             bottom_pos = np.zeros(len(categories))
             bottom_neg = np.zeros(len(categories))
 
@@ -316,7 +344,6 @@ def plot_relative_contribution_by_scenario(scenario_tables):
                 pos_values = np.where(values > 0, values, 0)
                 neg_values = np.where(values < 0, values, 0)
 
-                # Positive bars
                 if np.any(pos_values):
                     bar = main_ax.bar(
                         categories, pos_values, bar_width,
@@ -327,7 +354,6 @@ def plot_relative_contribution_by_scenario(scenario_tables):
                     labels.append(contribution.replace("%", ""))
                     bottom_pos += pos_values
 
-                # Negative bars
                 if np.any(neg_values):
                     main_ax.bar(
                         categories, neg_values, bar_width,
@@ -338,12 +364,9 @@ def plot_relative_contribution_by_scenario(scenario_tables):
 
             main_ax.axhline(0, color="black", linestyle="--", alpha=0.7)
 
-            # Add total values on top
+            # Ajouter les valeurs totales au-dessus
             for i, total in enumerate(total_impact):
-                if 0.01 <= abs(total) <= 1000:
-                    formatted_value = f"{total:.2f}"
-                else:
-                    formatted_value = f"{total:.2E}"
+                formatted_value = f"{total:.2f}" if abs(total) <= 1000 else f"{total:.2E}"
                 main_ax.text(
                     i, max(bottom_pos[i], 0) + 1,
                     formatted_value,
@@ -383,16 +406,18 @@ def plot_relative_contribution_by_scenario(scenario_tables):
         return []
 
 
+
+
 def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
     """
-    Generates a list of (main_figure, legend_figure) tuples for each scenario
-    showing stacked bar charts (horizontal) of relative contribution.
+    Génère des (main_figure, legend_figure) pour chaque scénario
+    affichant un bar chart horizontal empilé des contributions relatives.
     """
     try:
         global contributions_colors
         figures = []
 
-        # Identify all contributions
+        # Identifier toutes les contributions
         all_contributions = set()
         for table in scenario_tables.values():
             contribution_columns = [
@@ -401,28 +426,34 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
             ]
             all_contributions.update(contribution_columns)
 
-        # Assign colors
+        # Générer la palette de couleurs
         contribution_color_map = {}
-        if contributions_colors is not None and not contributions_colors.empty:
-            for contribution in sorted(all_contributions):
-                contrib_name = contribution.replace("%", "").strip()
-                match = contributions_colors[
-                    contributions_colors["Contributions"].str.lower() == contrib_name.lower()
-                ]
-                if not match.empty:
-                    contribution_color_map[contribution] = match["Hex Code"].iloc[0]
-                else:
-                    contribution_color_map[contribution] = "#000000"
-        else:
-            generic_colors = plt.get_cmap("tab10").colors
-            for i, contribution in enumerate(sorted(all_contributions)):
-                contribution_color_map[contribution] = generic_colors[i % len(generic_colors)]
+        generic_colors = plt.get_cmap("tab10").colors
 
-        # Generate charts per scenario
+        if contributions_colors is not None:
+            if isinstance(contributions_colors, dict):
+                for i, contrib in enumerate(sorted(all_contributions)):
+                    key = contrib.replace("%", "").strip().lower()
+                    contribution_color_map[contrib] = contributions_colors.get(key, generic_colors[i % len(generic_colors)])
+            elif hasattr(contributions_colors, "iterrows"):
+                for i, contrib in enumerate(sorted(all_contributions)):
+                    contrib_clean = contrib.replace("%", "").strip().lower()
+                    match = contributions_colors[
+                        contributions_colors["Contributions"].str.lower() == contrib_clean
+                    ]
+                    if not match.empty:
+                        contribution_color_map[contrib] = match["Hex Code"].iloc[0]
+                    else:
+                        contribution_color_map[contrib] = generic_colors[i % len(generic_colors)]
+        else:
+            for i, contrib in enumerate(sorted(all_contributions)):
+                contribution_color_map[contrib] = generic_colors[i % len(generic_colors)]
+
+        # Génération des graphiques
         for scenario_name, table in scenario_tables.items():
             main_fig, main_ax = plt.subplots(figsize=(10, 12))
             legend_fig, legend_ax = plt.subplots(figsize=(5, 3))
-            
+
             categories = table["Impact Category"]
             contribution_columns = [
                 col for col in table.columns
@@ -442,7 +473,6 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
                 pos_values = np.where(values > 0, values, 0)
                 neg_values = np.where(values < 0, values, 0)
 
-                # Positive bars
                 if np.any(pos_values):
                     bar = main_ax.barh(
                         categories,
@@ -455,7 +485,6 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
                     labels.append(contribution.replace("%", ""))
                     left_pos += pos_values
 
-                # Negative bars
                 if np.any(neg_values):
                     main_ax.barh(
                         categories,
@@ -466,15 +495,11 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
                     )
                     left_neg += neg_values
 
-            # Vertical reference line
             main_ax.axvline(0, color="black", linestyle="--", alpha=0.7)
 
-            # Add total values on the right
+            # Affichage des valeurs totales à droite
             for i, total in enumerate(total_impact):
-                if 0.01 <= abs(total) <= 1000:
-                    formatted_value = f"{total:.2f}"
-                else:
-                    formatted_value = f"{total:.2E}"
+                formatted_value = f"{total:.2f}" if abs(total) <= 1000 else f"{total:.2E}"
                 main_ax.text(
                     max(left_pos[i], 0) + 5,
                     i,
@@ -515,88 +540,102 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
         return []
 
 
+
 def plot_stacked_bar_by_category(percentage_table, total_impact_table):
     """
-    Generates a list of (main_figure, legend_figure, category_name) for each impact category.
-    Each figure shows stacked bars of contributions across different scenarios.
+    Génère (main_figure, legend_figure, category_name) pour chaque catégorie d’impact.
+    Adapté pour affichage dans Streamlit via st.pyplot().
     """
     try:
+        
         global contributions_colors
+
         figures = []
 
         if percentage_table.empty or total_impact_table.empty:
-            st.warning("Empty data for category-based charts.")
+            st.warning("⚠ Données vides pour les graphiques par catégorie.")
             return []
 
-        # Manage contribution colors
-        contrib_color_map = {}
-        contributions = percentage_table.columns.levels[1]
-        if contributions_colors is not None and not contributions_colors.empty:
-            for contribution in contributions:
-                contrib_name = contribution.replace("%", "").strip().lower()
-                match = contributions_colors[
-                    contributions_colors["Contributions"].str.lower() == contrib_name
-                ]
-                if not match.empty:
-                    contrib_color_map[contribution] = match["Hex Code"].iloc[0]
-                else:
-                    contrib_color_map[contribution] = "#000000"
-        else:
-            generic_colors = plt.get_cmap("tab10").colors
-            for i, contribution in enumerate(contributions):
-                contrib_color_map[contribution] = generic_colors[i % len(generic_colors)]
+        # 🔹 Obtenir les scénarios et contributions
+        scenarios = percentage_table.columns.get_level_values(0).unique()
+        contributions = percentage_table.columns.get_level_values(1).unique()
+        categories = percentage_table.index
 
-        # Generate charts for each category
-        for category in percentage_table.index:
+        # 🔹 Nettoyage des noms de scénarios
+        scenario_labels = {scenario: scenario.split("(")[-1].replace(")", "").strip().lower() for scenario in scenarios}
+        total_impact_labels = {sc.lower(): sc for sc in total_impact_table.columns}
+
+        # 🔹 Générer le mapping de couleurs des contributions
+        contrib_color_map = {}
+        generic_colors = plt.get_cmap("tab10").colors
+        if contributions_colors is not None:
+            if isinstance(contributions_colors, dict):
+                for i, contrib in enumerate(contributions):
+                    key = contrib.replace("%", "").strip().lower()
+                    contrib_color_map[contrib] = contributions_colors.get(key, generic_colors[i % len(generic_colors)])
+            elif hasattr(contributions_colors, "iterrows"):
+                for i, contrib in enumerate(contributions):
+                    contrib_clean = contrib.replace("%", "").strip().lower()
+                    match = contributions_colors[contributions_colors["Contributions"].str.lower() == contrib_clean]
+                    if not match.empty:
+                        contrib_color_map[contrib] = match["Hex Code"].iloc[0]
+                    else:
+                        contrib_color_map[contrib] = generic_colors[i % len(generic_colors)]
+        else:
+            for i, contrib in enumerate(contributions):
+                contrib_color_map[contrib] = generic_colors[i % len(generic_colors)]
+
+        # 🔹 Générer les graphiques pour chaque catégorie
+        for category in categories:
+            category_data = percentage_table.loc[category]
+            x_positions = np.arange(len(scenarios))
+            bar_width = max(0.2, min(0.8, 1.5 / len(scenarios)))
+
             main_fig, main_ax = plt.subplots(figsize=(12, 7))
             legend_fig, legend_ax = plt.subplots(figsize=(5, 3))
-            
-            scenarios = percentage_table.columns.levels[0]
-            bar_width = max(0.2, min(0.8, 1.5 / len(scenarios)))
-            x_positions = np.arange(len(scenarios))
-            
+
             bottom_pos = np.zeros(len(scenarios))
             bottom_neg = np.zeros(len(scenarios))
             bars = []
             labels = []
 
             for contribution in contributions:
-                values = np.array([
-                    percentage_table.loc[category, (s, contribution)]
-                    for s in scenarios
-                ])
-                # Convert to float, handle NaN
-                values = np.nan_to_num(values.astype(float))
+                values = []
+                for s in scenarios:
+                    try:
+                        values.append(category_data[s, contribution])
+                    except KeyError:
+                        values.append(0)
+                values = np.array(values, dtype=float)
 
                 pos_values = np.where(values > 0, values, 0)
                 neg_values = np.where(values < 0, values, 0)
 
-                # Positive bars
                 if np.any(pos_values):
                     bar = main_ax.bar(
                         x_positions,
                         pos_values,
-                        bar_width,
+                        width=bar_width,
                         bottom=bottom_pos,
-                        color=contrib_color_map[contribution]
+                        color=contrib_color_map.get(contribution, "#000000")
                     )
                     bars.append(bar[0])
-                    labels.append(contribution)
+                    labels.append(contribution.replace("%", ""))
                     bottom_pos += pos_values
 
-                # Negative bars
                 if np.any(neg_values):
                     main_ax.bar(
                         x_positions,
                         neg_values,
-                        bar_width,
+                        width=bar_width,
                         bottom=bottom_neg,
-                        color=contrib_color_map[contribution]
+                        color=contrib_color_map.get(contribution, "#000000")
                     )
                     bottom_neg += neg_values
 
-            # Add total impact labels
+            # Ajouter les totaux
             for i, scenario in enumerate(scenarios):
+<<<<<<< HEAD
                 try:
                     scenario_clean = scenario.split("(")[-1].replace(")", "").strip().lower()
                     total_value = total_impact_table.loc[category, scenario_clean]
@@ -631,6 +670,33 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
                 ha="right",
                 fontsize=font_sizes['label']
             )
+=======
+                scen_clean = scenario_labels[scenario]
+                if scen_clean in total_impact_labels:
+                    try:
+                        total_value = total_impact_table.loc[category, total_impact_labels[scen_clean]]
+                        formatted = f"{total_value:.2f}" if 0.01 <= abs(total_value) <= 1000 else f"{total_value:.2E}"
+                        main_ax.text(
+                            x_positions[i],
+                            max(bottom_pos[i], 0) + 5,
+                            formatted,
+                            ha='center',
+                            va='bottom',
+                            fontsize=10,
+                            color='black',
+                            fontweight='bold'
+                        )
+                    except KeyError:
+                        continue
+
+            # Mise en forme
+            main_ax.set_title(f"Contribution Analysis - Category: {category}", fontsize=16, pad=40, fontweight="bold")
+            main_ax.set_ylabel("(%)", fontsize=14)
+            main_ax.set_xticks(x_positions)
+            main_ax.set_xticklabels([scenario_labels[s] for s in scenarios], rotation=45, ha="right", fontsize=12)
+            main_ax.set_xlim(x_positions[0] - (bar_width / 2), x_positions[-1] + (bar_width / 2))
+            main_ax.set_ylim(min(bottom_neg) - 5, max(bottom_pos))
+>>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             plt.tight_layout()
 
@@ -643,17 +709,19 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
         return figures
 
     except Exception as e:
-        st.error(f"Error generating stacked bars by category: {str(e)}")
+        st.error(f"❌ Erreur dans la génération des graphiques par catégorie : {str(e)}")
         return []
+
+
 
 
 def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_table):
     """
-    Generates a set of combined scenario charts with hatches for each scenario, plus a legend.
-    Returns a list of tuples: (description, figure).
+    Génère des graphiques combinés par scénario avec hachures et légendes.
+    Retourne une liste de tuples : (description, figure).
     """
     try:
-        global contributions_colors
+        global contributions_colors, scenario_colors
         figures = []
 
         if percentage_table.empty or total_impact_table.empty:
@@ -667,43 +735,70 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
         bar_width = 0.9 / num_scenarios
         x_positions = np.arange(len(categories))
 
-        # Scenario hatches
-        scenario_hatches = ["//", "oo", "..", "xx", "--", "||", "++"]
+        # Définir les hachures par scénario
+        hatches_list = ["//", "oo", "..", "xx", "--", "||", "++"]
         scenario_hatch_dict = {
-            scenario: scenario_hatches[i % len(scenario_hatches)]
+            scenario: hatches_list[i % len(hatches_list)]
             for i, scenario in enumerate(scenarios)
         }
 
-        # Contribution color map
+        # Gérer les couleurs des contributions
+        cmap = plt.get_cmap("tab10")
         contrib_color_map = {}
-        if contributions_colors is not None and not contributions_colors.empty:
-            for contrib in contributions:
-                clean_contrib = contrib.replace("%", "").strip().lower()
-                match = contributions_colors[
-                    contributions_colors["Contributions"].str.lower() == clean_contrib
-                ]
-                if not match.empty:
-                    contrib_color_map[contrib] = match["Hex Code"].iloc[0]
-                else:
-                    contrib_color_map[contrib] = "#000000"
+        if contributions_colors is not None:
+            if isinstance(contributions_colors, dict):
+                for i, contrib in enumerate(contributions):
+                    key = contrib.replace("%", "").strip().lower()
+                    contrib_color_map[contrib] = contributions_colors.get(key, cmap(i % 10))
+            elif hasattr(contributions_colors, "iterrows"):
+                for i, contrib in enumerate(contributions):
+                    key = contrib.replace("%", "").strip().lower()
+                    match = contributions_colors[
+                        contributions_colors["Contributions"].str.lower() == key
+                    ]
+                    contrib_color_map[contrib] = match["Hex Code"].iloc[0] if not match.empty else cmap(i % 10)
         else:
-            cmap = plt.get_cmap("tab10")
-            contrib_color_map = {
-                contrib: cmap(i % 10) for i, contrib in enumerate(contributions)
-            }
+            for i, contrib in enumerate(contributions):
+                contrib_color_map[contrib] = cmap(i % 10)
 
+        # Gérer les couleurs des scénarios pour la légende (optionnel)
+        scenario_color_map = {}
+        if scenario_colors is not None:
+            if isinstance(scenario_colors, dict):
+                for scen in scenarios:
+                    key = scen.strip().lower()
+                    scenario_color_map[scen] = scenario_colors.get(key, "#FFFFFF")
+            elif hasattr(scenario_colors, "iterrows"):
+                for scen in scenarios:
+                    key = scen.strip().lower()
+                    match = scenario_colors[
+                        scenario_colors["Scenario"].str.lower() == key
+                    ]
+                    scenario_color_map[scen] = match["Hex Code"].iloc[0] if not match.empty else "#FFFFFF"
+        else:
+            for scen in scenarios:
+                scenario_color_map[scen] = "#FFFFFF"
+
+        # Fonction interne pour créer un graphique
         def create_figure(show_totals=False):
             fig, ax = plt.subplots(figsize=(16, 10))
+<<<<<<< HEAD
             title_str = "Combined Scenarios Analysis"
             title_str += " (with Totals)" if show_totals else ""
             ax.set_title(title_str, fontsize=font_sizes['title'], pad=20, fontweight='bold')
             ax.tick_params(axis='y', labelsize=font_sizes['label'])
 
             
+=======
+            title = "Combined Scenarios Analysis"
+            title += " (with Totals)" if show_totals else ""
+            ax.set_title(title, fontsize=18, pad=20, fontweight='bold')
+
+>>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             for i, scenario in enumerate(scenarios):
                 bottom_pos = np.zeros(len(categories))
                 bottom_neg = np.zeros(len(categories))
-                
+
                 for contrib in contributions:
                     try:
                         values = (
@@ -717,7 +812,6 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
                     pos_values = np.where(values > 0, values, 0)
                     neg_values = np.where(values < 0, values, 0)
 
-                    # Positive bars
                     if np.any(pos_values):
                         ax.bar(
                             x_positions + i * bar_width,
@@ -730,7 +824,6 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
                         )
                         bottom_pos += pos_values
 
-                    # Negative bars
                     if np.any(neg_values):
                         ax.bar(
                             x_positions + i * bar_width,
@@ -743,20 +836,17 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
                         )
                         bottom_neg += neg_values
 
-                # If totals are shown
+                # Ajouter les valeurs totales si demandé
                 if show_totals:
                     scenario_clean = scenario.split("(")[-1].replace(")", "").strip()
                     try:
                         totals = total_impact_table[scenario_clean].values
                         for j, total in enumerate(totals):
-                            if abs(total) >= 1000:
-                                label_str = f"{total:.2E}"
-                            else:
-                                label_str = f"{total:.2f}"
+                            formatted = f"{total:.2E}" if abs(total) >= 1000 else f"{total:.2f}"
                             ax.text(
                                 x_positions[j] + i * bar_width,
                                 bottom_pos[j] + 2,
-                                label_str,
+                                formatted,
                                 ha='center',
                                 va='bottom',
                                 rotation=90,
@@ -772,36 +862,33 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
             plt.tight_layout()
             return fig
 
-        # Main figure without totals
+        # Graphiques principaux
         figures.append(("Main Chart", create_figure(show_totals=False)))
-        # Figure with totals
         figures.append(("Chart with Totals", create_figure(show_totals=True)))
 
-        # Combined legend
+        # Légende combinée
         legend_fig, ax = plt.subplots(figsize=(8, 4))
         ax.axis('off')
 
-        # Contributions legend
         contrib_handles = [
             plt.Rectangle((0, 0), 1, 1, facecolor=color, edgecolor='black')
-            for contrib, color in contrib_color_map.items()
+            for _, color in contrib_color_map.items()
         ]
-        # Scenarios legend
         scenario_handles = [
             plt.Rectangle(
                 (0, 0),
                 1,
                 1,
-                facecolor='white',
-                hatch=hatch,
+                facecolor=scenario_color_map[scenario],
+                hatch=scenario_hatch_dict[scenario],
                 edgecolor='black'
             )
-            for scenario, hatch in scenario_hatch_dict.items()
+            for scenario in scenarios
         ]
 
         ax.legend(
             contrib_handles + scenario_handles,
-            list(contrib_color_map.keys()) + list(scenario_hatch_dict.keys()),
+            list(contrib_color_map.keys()) + [s.split("(")[-1].replace(")", "").strip() for s in scenarios],
             title="Legend - Contributions & Scenarios",
             ncol=2,
             fontsize=font_sizes['legend'],
@@ -814,6 +901,8 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
     except Exception as e:
         st.error(f"Error generating combined scenario chart: {str(e)}")
         return []
+
+
 
 
 def generate_table_graph(df, table_name):
@@ -902,50 +991,7 @@ def get_font_sizes():
         "legend": st.sidebar.slider("Legend Font Size", 6, 30, 12)
         }
 
-def generate_color_catalog_tables(file_path, sheet_name="Color catalog"):
-    """
-    Reads the 'Color catalog' sheet from the Excel file and creates two DataFrames:
-      - contributions_colors: columns ["Contributions", "Hex Code"]
-      - scenario_colors: columns ["Scenario", "Hex Code"]
-    Both DataFrames only keep rows where the primary column is not empty.
-    """
-    try:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
-        
-        col_map = {col.lower(): col for col in df.columns}
 
-        if "contributions" not in col_map:
-            raise KeyError("Column 'Contributions' does not exist in the sheet.")
-        contributions_col = col_map["contributions"]
-
-        if "hex code" not in col_map:
-            raise KeyError("Column 'Hex Code' does not exist in the sheet.")
-        hex_col = col_map["hex code"]
-
-        mask_contrib = df[contributions_col].notna() & (df[contributions_col].astype(str).str.strip() != "")
-        contributions_colors = df[mask_contrib][[contributions_col, hex_col]].copy()
-        contributions_colors.rename(columns={contributions_col: "Contributions", hex_col: "Hex Code"}, inplace=True)
-        contributions_colors.reset_index(drop=True, inplace=True)
-
-        if "scenarios" not in col_map:
-            raise KeyError("Column 'Scenarios' does not exist in the sheet.")
-        scenarios_col = col_map["scenarios"]
-
-        mask_scenario = df[scenarios_col].notna() & (df[scenarios_col].astype(str).str.strip() != "")
-        scenario_colors = df[mask_scenario][[scenarios_col, hex_col]].copy()
-        scenario_colors.rename(columns={scenarios_col: "Scenario", hex_col: "Hex Code"}, inplace=True)
-        scenario_colors.reset_index(drop=True, inplace=True)
-
-        print("Successfully generated contributions_colors table:")
-        print(contributions_colors.head())
-        print("\nSuccessfully generated scenario_colors table:")
-        print(scenario_colors.head())
-
-        return contributions_colors, scenario_colors
-
-    except Exception as e:
-        print(f"Error generating color catalog tables: {e}")
-        return None, None
 
 ###############################
 #           Main App
@@ -955,10 +1001,11 @@ def main():
     st.title("LCA graphs generator 🌍")
 
     # File uploader
-    uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+    uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"], key="file_upload_main")
 
     if uploaded_file is not None:
         try:
+<<<<<<< HEAD
             # Generate color tables from 'Color catalog' sheet
             global contributions_colors, scenario_colors, font_sizes
             contributions_colors, scenario_colors = generate_color_catalog_tables(uploaded_file, sheet_name="Color catalog")
@@ -966,10 +1013,55 @@ def main():
             xls = pd.ExcelFile(uploaded_file)
             sheet_name = st.selectbox("Choose a sheet to analyze", xls.sheet_names)
             
+=======
+            # Lire les feuilles disponibles dans le fichier
+            excel_file = pd.ExcelFile(uploaded_file)
+            sheet_names = excel_file.sheet_names
+
+            # Choix de la feuille par l'utilisateur
+            selected_sheet = st.selectbox("📄 Choisissez la feuille à analyser :", sheet_names)
+
+            # Affichage aperçu rapide (5 premières lignes)
+            preview_df = pd.read_excel(uploaded_file, sheet_name=selected_sheet, nrows=5)
+            with st.expander("👁️ Aperçu de la feuille sélectionnée"):
+                st.dataframe(preview_df)
+>>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             # Analyze the Excel file from a specified sheet (e.g., "Feuil2")
             initial_table, combined_table, total_impact_table, scenario_names_cleaned = analyze_excel_and_generate_tables(
-                uploaded_file, sheet_name="Feuil2"
+                uploaded_file, sheet_name=selected_sheet
             )
+            contributions_list = extract_contributions_from_initial_table(initial_table)
+
+            # Génération des couleurs par défaut
+            import matplotlib.colors as mcolors
+
+            def generate_default_colors(names, color_list):
+                return {name.lower(): color_list[i % len(color_list)] for i, name in enumerate(names)}
+
+            default_scenario_colors = generate_default_colors(scenario_names_cleaned, list(mcolors.TABLEAU_COLORS.values()))
+            default_contribution_colors = generate_default_colors(contributions_list, list(mcolors.CSS4_COLORS.values()))
+
+            # Dictionnaires globaux modifiables
+            global scenario_colors, contributions_colors
+            scenario_colors = default_scenario_colors.copy()
+            contributions_colors = default_contribution_colors.copy()
+
+            # Interface de personnalisation dans la sidebar
+            st.sidebar.subheader("🎨 Personnalisation des couleurs")
+            customize_colors = st.sidebar.checkbox("Personnaliser les couleurs ?")
+
+            if customize_colors:
+                st.sidebar.markdown("#### Couleurs des scénarios")
+                for scen in scenario_names_cleaned:
+                    scen_lower = scen.lower()
+                    picked = st.sidebar.color_picker(f"🎯 {scen.capitalize()}", scenario_colors[scen_lower])
+                    scenario_colors[scen_lower] = picked
+
+                st.sidebar.markdown("#### Couleurs des contributions")
+                for contrib in contributions_list:
+                    contrib_lower = contrib.lower()
+                    picked = st.sidebar.color_picker(f"📦 {contrib}", contributions_colors[contrib_lower])
+                    contributions_colors[contrib_lower] = picked
 
             if initial_table is not None:
                 scenario_tables = generate_tables_by_scenario(initial_table, scenario_names_cleaned)
@@ -1000,7 +1092,7 @@ def main():
                     for idx, (main_fig, legend_fig) in enumerate(scenario_figures):
                         scenario_name = list(scenario_tables.keys())[idx]
                         st.subheader(f"Scenario: {scenario_name}")
-                        
+
                         col1, col2 = st.columns([4, 1])
                         with col1:
                             st.pyplot(main_fig)
@@ -1017,7 +1109,7 @@ def main():
                     for idx, (main_fig, legend_fig) in enumerate(horizontal_figures):
                         scenario_name = list(scenario_tables.keys())[idx]
                         st.subheader(f"Scenario: {scenario_name} (Horizontal)")
-                        
+
                         col1, col2 = st.columns([4, 1])
                         with col1:
                             st.pyplot(main_fig)
@@ -1058,7 +1150,7 @@ def main():
                                 st.subheader("Main Scenario Comparison")
                                 st.pyplot(fig)
                                 plt.close(fig)
-                        
+
                         # Display combined legend
                         for name, fig in combined_figures:
                             if name == "Combined Legend":
