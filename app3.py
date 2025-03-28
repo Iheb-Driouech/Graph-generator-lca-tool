@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 28 14:50:44 2025
+
+@author: ploubet001
+"""
+
 # Import the necessary libraries
 import streamlit as st
 import pandas as pd
@@ -117,6 +124,7 @@ def generate_tables_by_scenario(initial_table, scenario_names_cleaned):
     - Percentage of each contribution relative to the total impact
     """
     try:
+        
         scenario_tables = {}
         for scenario_clean in scenario_names_cleaned:
             # Find the matching scenario in the MultiIndex columns
@@ -156,7 +164,15 @@ def generate_tables_by_scenario(initial_table, scenario_names_cleaned):
         return None
 
 
+
 def plot_comparison_bar_chart(total_impact_table):
+    """
+    Plots 3 figures:
+    1) Main comparison bar chart
+    2) Separate legend
+    3) Bar chart with total values labeled
+    Returns a list of matplotlib figures.
+    """
     try:
         global scenario_colors
         figs = []
@@ -205,12 +221,10 @@ def plot_comparison_bar_chart(total_impact_table):
             )
             bars.append(bar[0])
             labels.append(scenario)
-            labels.append(scenario)
 
         ax1.set_title("Comparison of Scenarios", fontsize=font_sizes['title'], pad=30, fontweight="bold")
         ax1.set_ylabel("(%)", fontsize=font_sizes['label'])
         ax1.tick_params(axis='y', labelsize=font_sizes['label'])
-
         ax1.set_ylim(0, 100)
         ax1.set_xlim(-0.5, len(categories))
         ax1.set_xticks(x_positions + (len(scenarios) - 1) * bar_width / 2)
@@ -246,17 +260,20 @@ def plot_comparison_bar_chart(total_impact_table):
         for i, scenario in enumerate(scenarios):
             for j, value in enumerate(normalized_data[scenario]):
                 total_value = total_impact_table.loc[categories[j], scenario]
-                formatted_value = f"{total_value:.2f}" if 0.01 <= abs(total_value) <= 1000 else f"{total_value:.2E}"
+                if 0.01 <= abs(total_value) <= 1000:
+                    formatted_value = f"{total_value:.2f}"
+                else:
+                    formatted_value = f"{total_value:.2E}"
                 ax3.text(
                     x_positions[j] + i * bar_width,
                     value + 2,
                     formatted_value,
                     ha="center",
                     va="bottom",
-                    fontsize=font_sizes['text'] - 2,
+                    fontsize=font_sizes['text'],
                     color="black",
                     fontweight="bold",
-                    rotation=90 #if abs(total_value) < 0.01 else 0,
+                    rotation=90,
                 )
 
         ax3.set_title("Comparison of Scenarios (with Totals)", fontsize=font_sizes['title'], pad=80, fontweight="bold")
@@ -372,7 +389,7 @@ def plot_relative_contribution_by_scenario(scenario_tables):
                     formatted_value,
                     ha="center",
                     va="bottom",
-                    fontsize=font_sizes['text'],
+                    fontsize=font_sizes['legend'],
                     color="black",
                     fontweight="bold"
                 )
@@ -387,8 +404,8 @@ def plot_relative_contribution_by_scenario(scenario_tables):
             main_ax.set_ylim(min(bottom_neg) - 5, max(bottom_pos))
             main_ax.set_xticks(range(len(categories)))
             main_ax.set_xticklabels(categories, rotation=45, ha="right", fontsize=font_sizes['label'])
-            main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             main_ax.tick_params(axis='y', labelsize=font_sizes['label'])
+            main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             plt.tight_layout()
 
             legend_ax.axis("off")
@@ -521,10 +538,10 @@ def plot_relative_contribution_by_scenario_horizontal(scenario_tables):
             main_ax.set_xlim(min(left_neg) - 5, max(left_pos))
             main_ax.set_yticks(range(len(categories)))
             main_ax.set_yticklabels(categories, fontsize=font_sizes['label'])
-            main_ax.grid(axis="x", linestyle="--", alpha=0.7)
             main_ax.tick_params(axis='y', labelsize=font_sizes['label'])
+            main_ax.grid(axis="x", linestyle="--", alpha=0.7)
             plt.tight_layout()
-
+            
             legend_ax.axis("off")
             legend_ax.legend(bars, labels, title="Contributions", fontsize=font_sizes['legend'], loc="center")
             plt.tight_layout()
@@ -635,42 +652,6 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
 
             # Ajouter les totaux
             for i, scenario in enumerate(scenarios):
-<<<<<<< HEAD
-                try:
-                    scenario_clean = scenario.split("(")[-1].replace(")", "").strip().lower()
-                    total_value = total_impact_table.loc[category, scenario_clean]
-                    if 0.01 <= abs(total_value) < 1000:
-                        formatted_value = f"{total_value:.2f}"
-                    else:
-                        formatted_value = f"{total_value:.2E}"
-                    main_ax.text(
-                        x_positions[i],
-                        max(bottom_pos[i], 0) + 5,
-                        formatted_value,
-                        ha='center',
-                        va='bottom',
-                        fontsize=font_sizes['text'],
-                        color='black',
-                        fontweight='bold'
-                    )
-                except KeyError:
-                    continue
-
-            main_ax.set_title(
-                f"Contribution Analysis - Category: {category}",
-                fontsize=font_sizes['title'],
-                pad=40,
-                fontweight="bold"
-            )
-            main_ax.set_ylabel("(%)", fontsize=font_sizes['label'])
-            main_ax.set_xticks(x_positions)
-            main_ax.set_xticklabels(
-                [s.split("(")[-1].replace(")", "").strip() for s in scenarios],
-                rotation=45,
-                ha="right",
-                fontsize=font_sizes['label']
-            )
-=======
                 scen_clean = scenario_labels[scenario]
                 if scen_clean in total_impact_labels:
                     try:
@@ -682,7 +663,7 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
                             formatted,
                             ha='center',
                             va='bottom',
-                            fontsize=10,
+                            fontsize=font_sizes['text'],
                             color='black',
                             fontweight='bold'
                         )
@@ -690,13 +671,12 @@ def plot_stacked_bar_by_category(percentage_table, total_impact_table):
                         continue
 
             # Mise en forme
-            main_ax.set_title(f"Contribution Analysis - Category: {category}", fontsize=16, pad=40, fontweight="bold")
-            main_ax.set_ylabel("(%)", fontsize=14)
+            main_ax.set_title(f"Contribution Analysis - Category: {category}", fontsize=font_sizes['title'], pad=40, fontweight="bold")
+            main_ax.set_ylabel("(%)", fontsize=font_sizes['label'])
             main_ax.set_xticks(x_positions)
-            main_ax.set_xticklabels([scenario_labels[s] for s in scenarios], rotation=45, ha="right", fontsize=12)
+            main_ax.set_xticklabels([scenario_labels[s] for s in scenarios], rotation=45, ha="right", fontsize=font_sizes['label'])
             main_ax.set_xlim(x_positions[0] - (bar_width / 2), x_positions[-1] + (bar_width / 2))
             main_ax.set_ylim(min(bottom_neg) - 5, max(bottom_pos))
->>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             main_ax.grid(axis="y", linestyle="--", alpha=0.7)
             plt.tight_layout()
 
@@ -782,19 +762,10 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
         # Fonction interne pour créer un graphique
         def create_figure(show_totals=False):
             fig, ax = plt.subplots(figsize=(16, 10))
-<<<<<<< HEAD
-            title_str = "Combined Scenarios Analysis"
-            title_str += " (with Totals)" if show_totals else ""
-            ax.set_title(title_str, fontsize=font_sizes['title'], pad=20, fontweight='bold')
-            ax.tick_params(axis='y', labelsize=font_sizes['label'])
-
-            
-=======
             title = "Combined Scenarios Analysis"
             title += " (with Totals)" if show_totals else ""
-            ax.set_title(title, fontsize=18, pad=20, fontweight='bold')
+            ax.set_title(title, fontsize=font_sizes['title'], pad=20, fontweight='bold')
 
->>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             for i, scenario in enumerate(scenarios):
                 bottom_pos = np.zeros(len(categories))
                 bottom_neg = np.zeros(len(categories))
@@ -857,6 +828,7 @@ def plot_combined_graph_with_scenario_hatches(percentage_table, total_impact_tab
 
             ax.set_xticks(x_positions + (num_scenarios - 1) * bar_width / 2)
             ax.set_xticklabels(categories, rotation=45, ha='right', fontsize=font_sizes['label'])
+            ax.tick_params(axis='y', labelsize=font_sizes['label'])
             ax.set_ylabel("Contribution (%)", fontsize=font_sizes['label'])
             ax.axhline(0, color='black', linestyle='--', alpha=0.5)
             plt.tight_layout()
@@ -1005,19 +977,11 @@ def main():
 
     if uploaded_file is not None:
         try:
-<<<<<<< HEAD
-            # Generate color tables from 'Color catalog' sheet
-            global contributions_colors, scenario_colors, font_sizes
-            contributions_colors, scenario_colors = generate_color_catalog_tables(uploaded_file, sheet_name="Color catalog")
-            font_sizes = get_font_sizes()
-            xls = pd.ExcelFile(uploaded_file)
-            sheet_name = st.selectbox("Choose a sheet to analyze", xls.sheet_names)
-            
-=======
+            global font_sizes
             # Lire les feuilles disponibles dans le fichier
             excel_file = pd.ExcelFile(uploaded_file)
             sheet_names = excel_file.sheet_names
-
+            font_sizes = get_font_sizes()
             # Choix de la feuille par l'utilisateur
             selected_sheet = st.selectbox("📄 Choisissez la feuille à analyser :", sheet_names)
 
@@ -1025,7 +989,6 @@ def main():
             preview_df = pd.read_excel(uploaded_file, sheet_name=selected_sheet, nrows=5)
             with st.expander("👁️ Aperçu de la feuille sélectionnée"):
                 st.dataframe(preview_df)
->>>>>>> 3632d3f (🔧 Modification du contenu de app3.py)
             # Analyze the Excel file from a specified sheet (e.g., "Feuil2")
             initial_table, combined_table, total_impact_table, scenario_names_cleaned = analyze_excel_and_generate_tables(
                 uploaded_file, sheet_name=selected_sheet
